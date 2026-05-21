@@ -11,10 +11,10 @@ try:
     client = redis.from_url(REDIS_URL, decode_responses=True)
     client.ping()
     REDIS_AVAILABLE = True
-    print("✅ Redis connecté")
+    print("[OK] Redis connecte")
 except Exception:
     REDIS_AVAILABLE = False
-    print("⚠️  Redis indisponible — cache désactivé")
+    print("[WARN] Redis indisponible -- cache desactive")
 
 def get_cache(key: str):
     """Récupère une valeur depuis le cache Redis."""

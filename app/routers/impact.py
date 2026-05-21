@@ -22,16 +22,28 @@ def calculer_impact(db: Session = Depends(get_db)):
     if cached:
         return cached
 
-    predictions = db.query(Prediction).all()
+    from app.models.zone import Zone
+    from sqlalchemy import func
+
+    # Une seule prédiction par zone (la plus récente)
+    zones = db.query(Zone).all()
+    predictions = []
+    for zone in zones:
+        p = db.query(Prediction).filter(
+            Prediction.zone_id == zone.id
+        ).order_by(Prediction.created_at.desc()).first()
+        if p:
+            predictions.append(p)
 
     coupures_evitees = len([
         p for p in predictions
-        if p.niveau_risque in ["Élevé", "Critique"]
+        if p.niveau_risque in ["Élevé", "Critique", "Eleve"]
     ])
 
     litres_diesel = coupures_evitees * 6
     co2_evite = round(litres_diesel * 2.68, 2)
     arbres_preserves = round(co2_evite / 0.06, 1)
+    # kWh optimisés = somme des consommations prévues par zone (1 par zone)
     kwh_optimises = round(sum([
         p.consommation_prevue_kwh for p in predictions
         if p.consommation_prevue_kwh is not None

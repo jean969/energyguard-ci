@@ -10,11 +10,6 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Modèles ML
-*.pkl
-*.h5
-*.pt
-
 # Base de données locale
 *.db
 *.sqlite

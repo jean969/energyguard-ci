@@ -1,51 +1,27 @@
 import { useState } from "react";
 import {
-  Download,
-  FileSpreadsheet,
-  FileText,
-  MapPin,
-  Sun,
-  Leaf,
-  AlertTriangle,
-  BarChart3,
+  Download, FileSpreadsheet, FileText, MapPin,
+  Sun, Leaf, AlertTriangle, BarChart3,
 } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import {
-  KEY_INDICATORS,
-  ZONES,
-  MINI_GRIDS,
-  ENVIRONMENTAL_IMPACT,
-  SYSTEM_ALERTS,
-} from "../data/energyData";
-import {
-  buildFullReportWorkbook,
-  reportFilename,
-  type ReportPeriod,
-} from "../data/reportData";
+import { LoadingScreen, ErrorScreen } from "../components/DataLoader";
+import { useBackendData } from "../hooks/useBackendData";
+import { buildFullReportWorkbook, reportFilename, type ReportPeriod } from "../data/reportData";
 import { downloadExcelWorkbook, downloadExcelSheet } from "../services/excelExport";
 
 export function ReportsPage() {
+  const { data, loading, error, refetch } = useBackendData();
   const [period, setPeriod] = useState<ReportPeriod>("mois");
   const [exporting, setExporting] = useState(false);
+
+  if (loading) return <LoadingScreen message="Chargement des rapports…" />;
+  if (error || !data) return <ErrorScreen error={error ?? "Données indisponibles"} onRetry={refetch} />;
 
   const handleExportFull = async () => {
     setExporting(true);
@@ -58,29 +34,28 @@ export function ReportsPage() {
   };
 
   const handleExportSheet = (sheetName: string, rows: Record<string, string | number>[]) => {
-    const safe = reportFilename(period).replace(".xlsx", `_${sheetName}.xlsx`);
-    downloadExcelSheet(rows, sheetName, safe);
+    downloadExcelSheet(rows, sheetName, reportFilename(period).replace(".xlsx", `_${sheetName}.xlsx`));
   };
 
-  const zoneRows = ZONES.map((z) => ({
-    Commune: z.name,
-    Risque: z.risk,
-    Score: z.score,
+  const zoneRows = data.zones.map((z) => ({ Commune: z.name, Risque: z.risk, Score: z.score }));
+
+  const miniGridRows = (data.raw.miniGrid?.villages ?? []).map((v) => ({
+    Village: v.nom_village,
+    Batterie: `${v.niveau_batterie_pct}%`,
+    "Solaire (kWh)": v.production_solaire_kwh,
+    "Conso prévue soir": v.consommation_prevue_soir_kwh,
+    "Autonomie (h)": v.autonomie_estimee_heures,
+    Statut: v.statut,
   }));
 
-  const miniGridRows = MINI_GRIDS.map((g) => ({
-    Village: g.name,
-    Batterie: `${g.batteryLevel}%`,
-    Solaire: g.solarProduction,
-    Statut: g.status,
-  }));
+  const impact = data.raw.impact;
 
   return (
     <div className="p-6 space-y-6 bg-background min-h-full">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <PageHeader
           title="Rapports énergétiques"
-          description="Synthèse réseau, mini-réseaux, impact et alertes — export Excel"
+          description="Synthèse réseau, mini-réseaux, impact et alertes — données temps réel"
           showLive={false}
         />
         <div className="flex flex-wrap items-center gap-3">
@@ -94,23 +69,20 @@ export function ReportsPage() {
               <SelectItem value="mois">Rapport mensuel</SelectItem>
             </SelectContent>
           </Select>
-          <Button
-            onClick={handleExportFull}
-            disabled={exporting}
-            className="gap-2"
-          >
+          <Button onClick={handleExportFull} disabled={exporting} className="gap-2">
             <FileSpreadsheet className="w-4 h-4" />
             {exporting ? "Export en cours…" : "Télécharger tout (Excel)"}
           </Button>
         </div>
       </div>
 
+      {/* KPIs temps réel */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Score risque", value: `${KEY_INDICATORS.riskScore}/100`, icon: BarChart3 },
-          { label: "kWh optimisés", value: KEY_INDICATORS.kwhOptimized.toLocaleString("fr-FR"), icon: FileText },
-          { label: "CO₂ évité", value: `${KEY_INDICATORS.co2Avoided.toLocaleString("fr-FR")} kg`, icon: Leaf },
-          { label: "Alertes actives", value: SYSTEM_ALERTS.length, icon: AlertTriangle },
+          { label: "Score risque global", value: `${data.keyIndicators.riskScore}/100`, icon: BarChart3 },
+          { label: "kWh optimisés", value: (impact?.kwh_optimises ?? 0).toLocaleString("fr-FR"), icon: FileText },
+          { label: "CO₂ évité", value: `${(impact?.co2_evite_kg ?? 0).toLocaleString("fr-FR")} kg`, icon: Leaf },
+          { label: "Alertes actives", value: data.alerts.length, icon: AlertTriangle },
         ].map((item) => {
           const Icon = item.icon;
           return (
@@ -129,46 +101,36 @@ export function ReportsPage() {
 
       <Tabs defaultValue="zones" className="space-y-4">
         <TabsList className="flex flex-wrap h-auto gap-1">
-          <TabsTrigger value="zones" className="gap-1">
-            <MapPin className="w-4 h-4" />
-            Zones
-          </TabsTrigger>
-          <TabsTrigger value="minigrids" className="gap-1">
-            <Sun className="w-4 h-4" />
-            Mini-réseaux
-          </TabsTrigger>
-          <TabsTrigger value="impact" className="gap-1">
-            <Leaf className="w-4 h-4" />
-            Impact
-          </TabsTrigger>
-          <TabsTrigger value="alertes" className="gap-1">
-            <AlertTriangle className="w-4 h-4" />
-            Alertes
-          </TabsTrigger>
+          <TabsTrigger value="zones" className="gap-1"><MapPin className="w-4 h-4" />Zones</TabsTrigger>
+          <TabsTrigger value="minigrids" className="gap-1"><Sun className="w-4 h-4" />Mini-réseaux</TabsTrigger>
+          <TabsTrigger value="impact" className="gap-1"><Leaf className="w-4 h-4" />Impact</TabsTrigger>
+          <TabsTrigger value="alertes" className="gap-1"><AlertTriangle className="w-4 h-4" />Alertes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="zones">
           <ReportSection
-            title="Risque par commune — Abidjan"
-            description="Scores et niveaux de risque pour la période sélectionnée"
+            title="Risque par zone"
+            description="Scores et niveaux de risque — modèle Random Forest temps réel"
             onExport={() => handleExportSheet("Zones", zoneRows)}
           >
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Commune</TableHead>
-                  <TableHead>Risque</TableHead>
+                  <TableHead>Zone</TableHead>
+                  <TableHead>Niveau risque (RF)</TableHead>
                   <TableHead>Score</TableHead>
+                  <TableHead>Allocation kWh</TableHead>
+                  <TableHead>Taux service</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {ZONES.map((z) => (
-                  <TableRow key={z.name}>
-                    <TableCell className="font-medium">{z.name}</TableCell>
-                    <TableCell>
-                      <RiskBadge risk={z.risk} />
-                    </TableCell>
-                    <TableCell>{z.score}/100</TableCell>
+                {(data.raw.optimize?.zones ?? []).map((z) => (
+                  <TableRow key={z.zone_id}>
+                    <TableCell className="font-medium">{z.nom}</TableCell>
+                    <TableCell><RiskBadge risk={z.niveau_risque} /></TableCell>
+                    <TableCell>{data.zones.find(dz => dz.name === z.nom)?.score ?? "—"}/100</TableCell>
+                    <TableCell>{z.allocation_kwh} kWh</TableCell>
+                    <TableCell>{z.taux_service}%</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -179,7 +141,7 @@ export function ReportsPage() {
         <TabsContent value="minigrids">
           <ReportSection
             title="Mini-réseaux ruraux"
-            description="État des villages et rapports de consommation"
+            description="État en temps réel depuis la base de données"
             onExport={() => handleExportSheet("Mini-réseaux", miniGridRows)}
           >
             <Table>
@@ -187,27 +149,23 @@ export function ReportsPage() {
                 <TableRow>
                   <TableHead>Village</TableHead>
                   <TableHead>Batterie</TableHead>
-                  <TableHead>Production (kWh)</TableHead>
+                  <TableHead>Solaire (kWh)</TableHead>
+                  <TableHead>Conso soir (kWh)</TableHead>
+                  <TableHead>Autonomie (h)</TableHead>
                   <TableHead>Statut</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {MINI_GRIDS.map((g) => (
-                  <TableRow key={g.name}>
-                    <TableCell className="font-medium">{g.name}</TableCell>
-                    <TableCell>{g.batteryLevel}%</TableCell>
-                    <TableCell>{g.solarProduction}</TableCell>
+                {(data.raw.miniGrid?.villages ?? []).map((v) => (
+                  <TableRow key={v.id}>
+                    <TableCell className="font-medium">{v.nom_village}</TableCell>
+                    <TableCell>{v.niveau_batterie_pct}%</TableCell>
+                    <TableCell>{v.production_solaire_kwh}</TableCell>
+                    <TableCell>{v.consommation_prevue_soir_kwh}</TableCell>
+                    <TableCell>{v.autonomie_estimee_heures}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant={
-                          g.status === "good"
-                            ? "secondary"
-                            : g.status === "warning"
-                              ? "outline"
-                              : "destructive"
-                        }
-                      >
-                        {g.status}
+                      <Badge variant={v.statut === "Critique" ? "destructive" : v.statut === "Faible" ? "outline" : "secondary"}>
+                        {v.statut}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -220,56 +178,52 @@ export function ReportsPage() {
         <TabsContent value="impact">
           <ReportSection
             title="Impact environnemental"
-            description="CO₂ évité, diesel et arbres préservés"
+            description="CO₂ évité, diesel et arbres préservés — calculés par le backend"
             onExport={() =>
               handleExportSheet("Impact", [
-                { Indicateur: "CO₂ évité (kg)", Valeur: ENVIRONMENTAL_IMPACT.co2Avoided },
-                { Indicateur: "Diesel non brûlé (L)", Valeur: ENVIRONMENTAL_IMPACT.dieselNotBurned },
-                { Indicateur: "Arbres préservés", Valeur: ENVIRONMENTAL_IMPACT.treesPreserved },
+                { Indicateur: "Coupures évitées", Valeur: impact?.coupures_evitees ?? 0 },
+                { Indicateur: "CO₂ évité (kg)", Valeur: impact?.co2_evite_kg ?? 0 },
+                { Indicateur: "Diesel non brûlé (L)", Valeur: impact?.litres_diesel_non_brules ?? 0 },
+                { Indicateur: "Arbres préservés", Valeur: impact?.arbres_preserves ?? 0 },
+                { Indicateur: "kWh optimisés", Valeur: impact?.kwh_optimises ?? 0 },
+                { Indicateur: "Total prédictions", Valeur: impact?.total_predictions ?? 0 },
               ])
             }
           >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <ImpactStat label="CO₂ évité" value={`${ENVIRONMENTAL_IMPACT.co2Avoided.toLocaleString("fr-FR")} kg`} />
-              <ImpactStat label="Diesel non brûlé" value={`${ENVIRONMENTAL_IMPACT.dieselNotBurned.toLocaleString("fr-FR")} L`} />
-              <ImpactStat label="Arbres préservés" value={String(ENVIRONMENTAL_IMPACT.treesPreserved)} />
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <ImpactStat label="Coupures évitées" value={String(impact?.coupures_evitees ?? 0)} />
+              <ImpactStat label="CO₂ évité" value={`${(impact?.co2_evite_kg ?? 0).toLocaleString("fr-FR")} kg`} />
+              <ImpactStat label="Diesel non brûlé" value={`${(impact?.litres_diesel_non_brules ?? 0).toLocaleString("fr-FR")} L`} />
+              <ImpactStat label="Arbres préservés" value={String(Math.round(impact?.arbres_preserves ?? 0))} />
+              <ImpactStat label="kWh optimisés" value={`${Math.round(impact?.kwh_optimises ?? 0).toLocaleString("fr-FR")}`} />
+              <ImpactStat label="Prédictions IA" value={String(impact?.total_predictions ?? 0)} />
             </div>
-            <p className="text-sm text-muted-foreground mt-4">
-              Le fichier Excel complet inclut aussi les onglets <strong>Hebdomadaire</strong> et{" "}
-              <strong>Mensuel</strong> avec l&apos;historique détaillé.
-            </p>
           </ReportSection>
         </TabsContent>
 
         <TabsContent value="alertes">
           <ReportSection
-            title="Journal des alertes"
-            description="Coupures, maintenance et mini-réseaux"
+            title="Alertes actives"
+            description="Générées en temps réel depuis le backend (maintenance + mini-réseaux + zones)"
             onExport={() =>
-              handleExportSheet(
-                "Alertes",
-                SYSTEM_ALERTS.map((a) => ({
-                  Type: a.type,
-                  Gravité: a.severity,
-                  Titre: a.title,
-                  Zone: a.zone ?? "—",
-                  Date: a.time,
-                }))
-              )
+              handleExportSheet("Alertes", data.alerts.map((a) => ({
+                Type: a.type, Gravité: a.severity, Titre: a.title,
+                Zone: a.zone ?? "—", Heure: a.time,
+              })))
             }
           >
             <div className="space-y-3">
-              {SYSTEM_ALERTS.map((a) => (
-                <div
-                  key={a.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg border bg-card"
-                >
+              {data.alerts.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Aucune alerte active</p>
+              ) : data.alerts.map((a) => (
+                <div key={a.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg border bg-card">
                   <div>
                     <p className="font-medium text-sm">{a.title}</p>
                     <p className="text-xs text-muted-foreground">{a.message}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {a.zone && <Badge variant="outline">{a.zone}</Badge>}
+                    <Badge variant={a.severity === "critical" ? "destructive" : "secondary"}>{a.severity}</Badge>
                     <span className="text-xs text-muted-foreground">{a.time}</span>
                   </div>
                 </div>
@@ -287,7 +241,7 @@ export function ReportsPage() {
               Export complet EnergyGuard CI
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              8 feuilles Excel : Synthèse, Zones, Mini-réseaux, Impact, Hebdomadaire, Mensuel, Alertes, Recommandations
+              8 feuilles Excel : Synthèse, Zones, Mini-réseaux, Impact, Alertes, Recommandations…
             </p>
           </div>
           <Button variant="outline" onClick={handleExportFull} disabled={exporting} className="gap-2 shrink-0">
@@ -300,16 +254,8 @@ export function ReportsPage() {
   );
 }
 
-function ReportSection({
-  title,
-  description,
-  onExport,
-  children,
-}: {
-  title: string;
-  description: string;
-  onExport: () => void;
-  children: React.ReactNode;
+function ReportSection({ title, description, onExport, children }: {
+  title: string; description: string; onExport: () => void; children: React.ReactNode;
 }) {
   return (
     <Card>
@@ -320,8 +266,7 @@ function ReportSection({
             <CardDescription>{description}</CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={onExport} className="gap-2 w-fit">
-            <FileSpreadsheet className="w-4 h-4" />
-            Excel
+            <FileSpreadsheet className="w-4 h-4" />Excel
           </Button>
         </div>
       </CardHeader>
@@ -332,13 +277,12 @@ function ReportSection({
 
 function RiskBadge({ risk }: { risk: string }) {
   const styles: Record<string, string> = {
-    Faible: "bg-green-100 text-green-800",
-    Moyen: "bg-orange-100 text-orange-800",
-    Élevé: "bg-red-100 text-red-800",
-    Critique: "bg-neutral-900 text-neutral-100",
+    Faible: "bg-green-100 text-green-800", Moyen: "bg-orange-100 text-orange-800",
+    Élevé: "bg-red-100 text-red-800", Critique: "bg-neutral-900 text-neutral-100",
+    Eleve: "bg-red-100 text-red-800",
   };
   return (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${styles[risk] ?? ""}`}>
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${styles[risk] ?? "bg-gray-100 text-gray-800"}`}>
       {risk}
     </span>
   );

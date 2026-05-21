@@ -6,41 +6,37 @@ import { PredictionPanel } from "./PredictionPanel";
 import { AlertsPanel } from "./AlertsPanel";
 import { NetworkRecommendations } from "./NetworkRecommendations";
 import { PageHeader } from "./PageHeader";
-import {
-  KEY_INDICATORS,
-  ZONES,
-  OUTAGE_PREDICTION,
-  SYSTEM_ALERTS,
-  NETWORK_RECOMMENDATIONS,
-} from "../data/energyData";
+import { LoadingScreen, ErrorScreen } from "./DataLoader";
+import { useBackendData } from "../hooks/useBackendData";
 
-/** Vue synthèse — détail par module dans la sidebar */
 export function MainDashboard() {
+  const { data, loading, error, refetch } = useBackendData();
+
+  if (loading) return <LoadingScreen message="Chargement du tableau de bord — modèles IA en cours…" />;
+  if (error || !data) return <ErrorScreen error={error ?? "Données indisponibles"} onRetry={refetch} />;
+
   return (
     <div className="min-h-screen bg-background">
       <div className="p-6 space-y-6">
-        <motion.div
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
+        <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}>
           <PageHeader
             title="Tableau de bord"
             description="Prédiction, optimisation et impact — Côte d'Ivoire"
           />
         </motion.div>
 
-        <KeyIndicators {...KEY_INDICATORS} />
+        <KeyIndicators {...data.keyIndicators} />
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 space-y-6">
-            <PredictionPanel prediction={OUTAGE_PREDICTION} />
+            <PredictionPanel prediction={data.outage} />
             <WeatherWidget />
-            <RiskZoneDisplay zones={ZONES} />
+            <RiskZoneDisplay zones={data.zones} />
           </div>
-          <AlertsPanel alerts={SYSTEM_ALERTS} compact />
+          <AlertsPanel alerts={data.alerts} compact />
         </div>
 
-        <NetworkRecommendations recommendations={NETWORK_RECOMMENDATIONS} />
+        <NetworkRecommendations recommendations={data.recommendations} />
       </div>
     </div>
   );
