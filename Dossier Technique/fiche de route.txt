@@ -1,0 +1,36 @@
+Activer l'environnement virtuel (à faire à chaque session) :
+-->> C:\Users\ACER\Documents\Mini_Projet\ENERGIE TECH\venv\Scripts\activate
+
+Pour désactiver : 
+-->> C:\Users\ACER\Documents\Mini_Projet\ENERGIE TECH\venv\Scripts\deactivate
+
+--> Étape 1 — Vérifier que Docker Desktop est lancé, puis taper : 
+docker run -d --name redis-energyguard -p 6379:6379 redis:7
+
+Docker télécharge et lance Redis 7 automatiquement. Le port 6379 est exposé sur ta machine.
+
+-->> Étape 2 — Vérifier que Redis répond :
+docker exec -it redis-energyguard redis-cli ping
+
+ Résultat attendu : PONG — Redis fonctionne parfaitement.
+
+
+-->> Étape 3 — Relancer Redis après redémarrage de la machine :
+docker start redis-energyguard
+
+Le conteneur Redis existe déjà — pas besoin de le recréer, juste le démarrer.
+
+
+----------------------------------------------------------------------------------------
+scikit-learn + joblib
+Pour charger les modèles .pkl du Dev 1 (Random Forest, Isolation Forest)
+-> pip install scikit-learn joblib
+
+TensorFlow ou PyTorch (léger)
+Pour charger le modèle LSTM .h5 du Dev 1 — demande à Dev 1 lequel il utilise pour installer le bon
+-> pip install tensorflow
+-> pip install torch
+
+httpx + python-dotenv
+httpx pour appeler l'API Open-Meteo (météo) · python-dotenv pour gérer les variables d'environnement
+-> pip install httpx python-dotenv

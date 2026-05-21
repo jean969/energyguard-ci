@@ -1,0 +1,34 @@
+# Environnement virtuel
+venv/
+
+# Variables d'environnement
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Modèles ML
+*.pkl
+*.h5
+*.pt
+
+# Base de données locale
+*.db
+*.sqlite
+
+# Docker
+.dockerignore
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
