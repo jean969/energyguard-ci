@@ -293,7 +293,10 @@ Ce projet est sous licence [À définir]
 
 ## 📧 Contact & Support
 
-- **Équipe Dev**: [À compléter]
+- **Équipe Dev**:
+  Zokou Blé Élie Ezéchiel (Data Science)
+  Bouo Kouassi Yaoua Biré Marie-Grâce (Frontend & UI/UX)
+  Yavo Jean-Pierre (Backend & Infrastructure)
 - **Email**: [À compléter]
 
 ---
