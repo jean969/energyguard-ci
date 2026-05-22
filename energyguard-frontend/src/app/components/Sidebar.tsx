@@ -30,7 +30,6 @@ export function Sidebar({ currentPage, onPageChange, user, onLogout }: SidebarPr
     { id: "minigrids",     name: "Mini-réseaux",     icon: Sun,             description: "Zones rurales" },
     { id: "environment",   name: "Impact",           icon: Leaf,            description: "CO₂ & environnement" },
     { id: "demo",          name: "Démo live",        icon: PlayCircle,      description: "Coupure évitée" },
-    { id: "analytics",     name: "Analytique",       icon: BarChart3,       description: "Par zone & appareil" },
     { id: "reports",       name: "Rapports",         icon: FileText,        description: "Export Excel" },
     { id: "configuration", name: "Configuration",    icon: Settings,        description: "Paramètres système" },
     { id: "settings",      name: "Profil",           icon: User,            description: "Préférences" },

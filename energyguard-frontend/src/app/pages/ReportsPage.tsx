@@ -113,28 +113,45 @@ export function ReportsPage() {
             description="Scores et niveaux de risque — modèle Random Forest temps réel"
             onExport={() => handleExportSheet("Zones", zoneRows)}
           >
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Zone</TableHead>
-                  <TableHead>Niveau risque (RF)</TableHead>
-                  <TableHead>Score</TableHead>
+                  <TableHead>Niveau (RF)</TableHead>
+                  <TableHead>Score RF</TableHead>
+                  <TableHead>Demande kWh</TableHead>
                   <TableHead>Allocation kWh</TableHead>
+                  <TableHead>Déficit kWh</TableHead>
                   <TableHead>Taux service</TableHead>
+                  <TableHead>Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {(data.raw.optimize?.zones ?? []).map((z) => (
                   <TableRow key={z.zone_id}>
-                    <TableCell className="font-medium">{z.nom}</TableCell>
+                    <TableCell className="font-medium whitespace-nowrap">{z.nom}</TableCell>
                     <TableCell><RiskBadge risk={z.niveau_risque} /></TableCell>
-                    <TableCell>{data.zones.find(dz => dz.name === z.nom)?.score ?? "—"}/100</TableCell>
-                    <TableCell>{z.allocation_kwh} kWh</TableCell>
-                    <TableCell>{z.taux_service}%</TableCell>
+                    <TableCell className="font-bold">{data.zones.find(dz => dz.name === z.nom)?.score ?? "—"}/100</TableCell>
+                    <TableCell>{z.demande_kwh} kWh</TableCell>
+                    <TableCell className="text-green-700 font-medium">{z.allocation_kwh} kWh</TableCell>
+                    <TableCell className={z.deficit_kwh > 0 ? "text-red-600 font-medium" : "text-green-600"}>
+                      {z.deficit_kwh > 0 ? `-${z.deficit_kwh} kWh` : "0 kWh"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 bg-gray-200 rounded-full h-1.5">
+                          <div className="h-1.5 rounded-full" style={{ width: `${Math.min(z.taux_service, 100)}%`, backgroundColor: z.taux_service >= 90 ? "#16a34a" : z.taux_service >= 70 ? "#d97706" : "#dc2626" }} />
+                        </div>
+                        <span className="text-sm">{z.taux_service}%</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground max-w-[180px]">{z.action}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+            </div>
           </ReportSection>
         </TabsContent>
 
